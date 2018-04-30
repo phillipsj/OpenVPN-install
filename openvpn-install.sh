@@ -255,7 +255,7 @@ function putS3
 {
   path=$1
   file=$2
-  aws_path=$3
+  aws_path=$_arg_bucket_path
   bucket=$_arg_bucket
   date=$(date +"%a, %d %b %Y %T %z")
   acl="x-amz-acl:public-read"
@@ -459,21 +459,19 @@ else
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
 	echo "Otherwise, it should be your public IPv4 address."
-	while [[$_arg_ip = ""]]; do
+	while [[ $_arg_ip = "" ]]; do
 		read -p "IP address: " -e -i $_arg_ip IP
 	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
-	while [[$_arg_port = ""]]; do
-		read -p "Port: " -e -i 1194 PORT
-		_arg_port = $PORT
+	while [[ $_arg_port = "" ]]; do
+		read -p "Port: " -e -i 1194 _arg_port
 	done
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
 	while [[ $_arg_protocol != "UDP" && $_arg_protocol != "TCP" ]]; do
-		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
-		_arg_protocol = $PROTOCOL
+		read -p "Protocol [UDP/TCP]: " -e -i _arg_protocol
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
@@ -525,7 +523,7 @@ else
 		_arg_cipher="cipher CAMELLIA-192-CBC"
 		;;
 		6)
-		CIP_arg_cipherHER="cipher CAMELLIA-256-CBC"
+		_arg_cipher="cipher CAMELLIA-256-CBC"
 		;;
 		7)
 		_arg_cipher="cipher SEED-CBC"
@@ -573,11 +571,11 @@ else
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $_arg_client = "" ]]; do
 		echo "Please, use one word only, no special characters"
-		read -p "Client name: " -e -i client CLIENT
+		read -p "Client name: " -e -i client _arg_client
 	done
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
-	while [[ "$_arg_skip_confirmation" = "off" ]]; do
+	while [[ $_arg_skip_confirmation = "off" ]]; do
 		read -n1 -r -p "Press any key to continue..."
 	done
 
@@ -888,8 +886,8 @@ verb 3" >> /etc/openvpn/server.conf
 	echo ""
 	echo "Uplodaing the client config to S3 if credentials are provided."
 	echo ""
-	if [[ "$_arg_key" != "" || "$_arg_secret" != ""]]; then
-		putS3 "$homdir" "$CLIENT.ovpn" "/clients/"
+	if [[ "$_arg_key" != "" || "$_arg_secret" != "" ]]; then
+		putS3 "$homeDir" "$_arg_client.ovpn"
 	fi
 fi
 
