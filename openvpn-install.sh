@@ -14,10 +14,6 @@ if [[ ! -e /dev/net/tun ]]; then
 	exit 2
 fi
 
-if grep -qs "CentOS release 5" "/etc/redhat-release"; then
-	echo "CentOS 5 is too old and not supported"
-	exit 3
-fi
 
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
@@ -29,31 +25,11 @@ if [[ -e /etc/debian_version ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ""
-		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-		echo "then you can continue, a recent version of OpenVPN is available on these."
-		echo "Keep in mind they are not supported, though."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
+		echo "Ok, bye !"
+		exit 4
 	fi
-elif [[ -e /etc/fedora-release ]]; then
-	OS=fedora
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
-	OS=centos
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+	echo "Looks like you aren't running this installer on a Debian or Ubuntu system"
 	exit 4
 fi
 
@@ -97,7 +73,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
 	do
 	clear
-		echo "OpenVPN-install (github.com/Angristan/OpenVPN-install)"
+		echo "OpenVPN-install (github.com/phillipsj/OpenVPN-install)"
 		echo ""
 		echo "Looks like OpenVPN is already installed"
 		echo ""
@@ -211,7 +187,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 	done
 else
 	clear
-	echo "Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)"
+	echo "Welcome to the secure OpenVPN installer (github.com/phillipsj/OpenVPN-install)"
 	echo ""
 	# OpenVPN setup and first user creation
 	echo "I need to ask you a few questions before starting the setup"
@@ -220,7 +196,9 @@ else
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
 	echo "Otherwise, it should be your public IPv4 address."
-	read -p "IP address: " -e -i $IP IP
+	while [[$IP = ""]]; do
+		read -p "IP address: " -e -i $IP IP
+	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
 	read -p "Port: " -e -i 1194 PORT
@@ -332,7 +310,9 @@ else
 	done
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
-	read -n1 -r -p "Press any key to continue..."
+	while [[ $NO_CONFIMATION = ""]]; do
+		read -n1 -r -p "Press any key to continue..."
+	done
 
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get install ca-certificates gpg -y
@@ -363,95 +343,38 @@ else
 			mkdir /etc/iptables
 			iptables-save > /etc/iptables/iptables.rules
 			echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-			chmod +x /etc/iptables/flush-iptables.sh
-			echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
-Before=network-pre.target
-Wants=network-pre.target
-[Service]
-Type=oneshot
-ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecStop=/etc/iptables/flush-iptables.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
+				iptables -F
+				iptables -X
+				iptables -t nat -F
+				iptables -t nat -X
+				iptables -t mangle -F
+				iptables -t mangle -X
+				iptables -P INPUT ACCEPT
+				iptables -P FORWARD ACCEPT
+				iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
+							chmod +x /etc/iptables/flush-iptables.sh
+							echo "[Unit]
+				Description=Packet Filtering Framework
+				DefaultDependencies=no
+				Before=network-pre.target
+				Wants=network-pre.target
+				[Service]
+				Type=oneshot
+				ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
+				ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
+				ExecStop=/etc/iptables/flush-iptables.sh
+				RemainAfterExit=yes
+				[Install]
+				WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			systemctl daemon-reload
 			systemctl enable iptables.service
-		fi
-	elif [[ "$OS" = 'centos' || "$OS" = 'fedora' ]]; then
-		if [[ "$OS" = 'centos' ]]; then
-			yum install epel-release -y
-		fi
-		yum install openvpn iptables openssl wget ca-certificates curl -y
-		# Install iptables service
-		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-			mkdir /etc/iptables
-			iptables-save > /etc/iptables/iptables.rules
-			echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-			chmod +x /etc/iptables/flush-iptables.sh
-			echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
-Before=network-pre.target
-Wants=network-pre.target
-[Service]
-Type=oneshot
-ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecStop=/etc/iptables/flush-iptables.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-			systemctl daemon-reload
-			systemctl enable iptables.service
-			# Disable firewalld to allow iptables to start upon reboot
-			systemctl disable firewalld
-			systemctl mask firewalld
 		fi
 	else
-		# Else, the distro is ArchLinux
 		echo ""
 		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
+		echo "This script only works for Debian or Ubuntu."
 		echo ""
-		echo "Continuing will update your installed packages and install needed ones."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e -i y CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
-
-		if [[ "$OS" = 'arch' ]]; then
-			# Install dependencies
-			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-			systemctl daemon-reload
-			systemctl enable iptables
-			systemctl start iptables
-		fi
+		echo ""
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
