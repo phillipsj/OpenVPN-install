@@ -1,6 +1,6 @@
-# OpenVPN-install
+# OpenVPN-install with Arguments
 
-OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
+OpenVPN installer for Debian and Ubuntu
 
 This script will let you setup your own secure VPN server in just a few minutes.
 
@@ -8,6 +8,8 @@ Here is a preview of the installer :
 
 ![](https://lut.im/IzjFrfhM18/DY8KD91W0uMhEgLp.png)
 ![](https://lut.im/eODTn8Sa9y/euCqh0wzXwlz3UNs.png)
+
+## This is a fork that allows command line arguments.
 
 ## Usage
 
